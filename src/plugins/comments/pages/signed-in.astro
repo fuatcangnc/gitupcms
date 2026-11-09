@@ -10,13 +10,13 @@ import { originAllowed, siteByKey } from "@/plugins/comments/lib/comments";
 Astro.response.headers.set("X-Frame-Options", "DENY");
 let popup: { key: string; origin: string } | null = null;
 try {
-  popup = JSON.parse(Buffer.from(Astro.cookies.get("wuppy_comment_popup")?.value ?? "", "base64url").toString());
+  popup = JSON.parse(Buffer.from(Astro.cookies.get("gitupcms_comment_popup")?.value ?? "", "base64url").toString());
 } catch {}
-Astro.cookies.delete("wuppy_comment_popup", { path: "/comments" });
+Astro.cookies.delete("gitupcms_comment_popup", { path: "/comments" });
 const site = popup ? siteByKey(popup.key) : null;
 const session = site && originAllowed(site, popup!.origin) ? await commentAuth.api.getSession({ headers: Astro.request.headers }).catch(() => null) : null;
 const u = session?.user as any;
-const message = session ? { type: "wuppy-comments-auth", token: session.session.token, user: { id: u.id, name: u.name, username: u.username, image: u.image ?? null } } : null;
+const message = session ? { type: "gitupcms-comments-auth", token: session.session.token, user: { id: u.id, name: u.name, username: u.username, image: u.image ?? null } } : null;
 const target = session ? popup!.origin : null;
 ---
 

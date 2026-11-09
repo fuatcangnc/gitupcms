@@ -12,6 +12,6 @@ export default defineConfig({
   build: {
     outDir: here(".."),
     emptyOutDir: false,
-    lib: { entry: here("embed.ts"), formats: ["iife"], name: "WuppyCommentsEmbed", fileName: () => "embed.js" },
+    lib: { entry: here("embed.ts"), formats: ["iife"], name: "GitupcmsCommentsEmbed", fileName: () => "embed.js" },
   },
 });

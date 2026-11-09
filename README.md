@@ -31,8 +31,12 @@ docker run -d -p 4321:4321 -v gitupcms-data:/data --env-file .env gitupcms
 Put it behind HTTPS (Caddy, nginx…) at the address in `BETTER_AUTH_URL`.
 
 Open the address. The first account you create (email and password, or GitHub when `GITHUB_CLIENT_ID` is
-set) is the admin; after that sign-up is closed. Back up the database file (`DB_PATH`, default
+set) is the admin; after that only invited people can sign up. Invite more admins from **Team**: they get an
+email (when SMTP is set) and a link that works for a week. Back up the database file (`DB_PATH`, default
 `data/gitupcms.db`).
+
+Behind a reverse proxy, set `TRUST_PROXY=1` so sign-in rate limits see visitors' addresses (`X-Forwarded-For`).
+Only set it when the proxy overwrites that header.
 
 ## Add comments to a site
 
@@ -43,7 +47,7 @@ set) is the admin; after that sign-up is closed. Back up the database file (`DB_
 3. **Install**: paste the snippet into your pages:
 
    ```html
-   <div data-wuppy-comments data-site-key="YOUR_KEY"></div>
+   <div data-gitupcms-comments data-site-key="YOUR_KEY"></div>
    <script async src="https://comments.example.com/comments/embed.js"></script>
    ```
 
@@ -56,11 +60,12 @@ set) is the admin; after that sign-up is closed. Back up the database file (`DB_
 | `src/plugins/comments/` | The comments: widget, its API, commenter sign-in, admin panel, emails |
 | `src/pages/` | Admin sign-in, the sites list, a site's admin page and their API |
 | `src/lib/admin.ts` | Admin sign-in (better-auth: email + password, GitHub) |
+| `src/lib/team.ts` | Admin invites and removing admins |
 | `src/lib/db.ts` | The SQLite database |
 
-`src/plugins/comments/` and a few UI files are shared with [WuppyCMS](../cms), which offers the same comments as a
-plugin. Inside this repository, edit them in `../cms/src` and run `pnpm sync`; `pnpm check` fails when a copy is
-out of date.
+`src/plugins/comments/` and a few UI files are shared with WuppyCMS, which offers the same comments as a plugin.
+In the WuppyCMS monorepo they are edited in `../cms/src` and copied here with `pnpm sync`; on its own, this
+repository works as is and the sync step does nothing.
 
 ```sh
 pnpm dev     # http://localhost:4321

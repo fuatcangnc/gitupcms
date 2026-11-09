@@ -29,8 +29,9 @@
 :host {
   display: block;
   font-family: inherit;
-  /* shortcut: centered column so the old component (no wrapper) isn't full width; override with --wuppy-comments-width */
-  max-width: var(--wuppy-comments-width, 48rem);
+  /* shortcut: centered column so the old component (no wrapper) isn't full width; override with --gitupcms-comments-width
+     (--wuppy-comments-width: components installed before the rename) */
+  max-width: var(--gitupcms-comments-width, var(--wuppy-comments-width, 48rem));
   margin-inline: auto;
 }
 

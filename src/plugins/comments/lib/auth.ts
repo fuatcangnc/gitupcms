@@ -45,7 +45,7 @@ const optionsFor = (basePath: string, apps: OAuthApps) =>
     session: { modelName: "commenter_session", expiresIn: 60 * 60 * 24 * 7 },
     account: { modelName: "commenter_account" },
     verification: { modelName: "commenter_verification" },
-    advanced: { cookiePrefix: "wuppy-commenter" },
+    advanced: { cookiePrefix: "gitupcms-commenter" },
     socialProviders: {
       ...(apps.google ? { google: { ...apps.google } } : {}),
       ...(apps.github ? { github: { ...apps.github } } : {}),

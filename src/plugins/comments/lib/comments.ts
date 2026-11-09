@@ -608,37 +608,41 @@ export const deleteAllData = (key: string) =>
 
 // ─── Install ────────────────────────────────────────────────────────────────
 
-export const COMPONENT_PATH = "src/components/WuppyComments.astro";
+export const COMPONENT_PATH = "src/components/GitupcmsComments.astro";
+/** The file name before the rename. Sites that have it keep it: their pages import it by name. */
+export const LEGACY_COMPONENT_PATH = "src/components/WuppyComments.astro";
+/** Where a site's component lives: the old file when only that exists, else the new one. */
+export const componentPathIn = (has: (path: string) => boolean) => (has(LEGACY_COMPONENT_PATH) && !has(COMPONENT_PATH) ? LEGACY_COMPONENT_PATH : COMPONENT_PATH);
 
-/** The Astro component the Install tab commits: one <WuppyComments /> per page that takes comments. */
-export const componentSource = (key: string) => `---
+/** The Astro component the Install tab commits: one <GitupcmsComments /> per page that takes comments. */
+export const componentSource = (key: string, path = COMPONENT_PATH, name = path.split("/").pop()!.replace(/\.astro$/, "")) => `---
 /**
- * Comments by ${BRAND.name} (self-hosted at ${appUrl()}). Put <WuppyComments /> where the comments go.
+ * Comments by ${BRAND.name} (self-hosted at ${appUrl()}). Put <${name} /> where the comments go.
  * Each page gets its own thread, keyed by its path; pass \`slug\` to share or rename one.
  */
 interface Props {
   slug?: string;
-  /** Tailwind classes for the wrapper, e.g. <WuppyComments class="max-w-5xl" />. */
+  /** Tailwind classes for the wrapper, e.g. <${name} class="max-w-5xl" />. */
   class?: string;
 }
 const { slug = Astro.url.pathname.replace(/\\/+$/, "") || "/", class: className } = Astro.props;
 ---
 
-<section class:list={["wuppy-comments", className]}>
-  <div data-wuppy-comments data-site-key="${key}" data-slug={slug}></div>
+<section class:list={["gitupcms-comments", className]}>
+  <div data-gitupcms-comments data-site-key="${key}" data-slug={slug}></div>
 </section>
 <script is:inline async src="${appUrl()}/comments/embed.js"></script>
 
 <style>
-  /* A readable column. It sits in the base layer, so your Tailwind classes win: <WuppyComments class="max-w-5xl" />. */
+  /* A readable column. It sits in the base layer, so your Tailwind classes win: <${name} class="max-w-5xl" />. */
   @layer base {
-    .wuppy-comments {
+    .gitupcms-comments {
       box-sizing: border-box;
       width: 100%;
       max-width: 48rem;
       margin-inline: auto;
       padding: 3rem 1rem;
-      --wuppy-comments-width: none;
+      --gitupcms-comments-width: none;
     }
   }
 </style>

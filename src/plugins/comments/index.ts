@@ -1,5 +1,5 @@
 /**
- * WuppyCMS Comments: self-hosted comments for Astro sites. Everything of the plugin lives in this folder; this
+ * Gitupcms comments: self-hosted comments for Astro sites. Everything of the plugin lives in this folder; this
  * integration adds its pages and API to the CMS (astro.config.mjs → integrations: [comments()]).
  */
 import type { AstroIntegration } from "astro";
@@ -20,7 +20,7 @@ const ROUTES: [pattern: string, file: string][] = [
 ];
 
 export default ({ cmsAdmin = true } = {}): AstroIntegration => ({
-  name: "wuppycms-comments",
+  name: "gitupcms-comments",
   hooks: {
     "astro:config:setup": ({ injectRoute }) => {
       for (const [pattern, file] of [...(cmsAdmin ? CMS_ROUTES : []), ...ROUTES]) injectRoute({ pattern, entrypoint: new URL(file, import.meta.url), prerender: false });

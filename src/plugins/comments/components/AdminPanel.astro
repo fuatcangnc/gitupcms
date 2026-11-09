@@ -27,7 +27,7 @@ const max = Math.max(1, ...s.activity.map((d) => d.count));
 const W = 600, H = 120, GAP = 2;
 const bw = W / s.activity.length;
 const fmt = (iso: string) => new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(new Date(iso));
-const htmlSnippet = `<div data-wuppy-comments data-site-key="${cs.key}"></div>\n<script async src="${appUrl()}/comments/embed.js"></script>`;
+const htmlSnippet = `<div data-gitupcms-comments data-site-key="${cs.key}"></div>\n<script async src="${appUrl()}/comments/embed.js"></script>`;
 ---
 
 <Tabs defaultValue={tab}>

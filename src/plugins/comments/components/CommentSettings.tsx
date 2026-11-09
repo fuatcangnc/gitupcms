@@ -31,7 +31,7 @@ const CONSOLE = { google: "https://console.cloud.google.com/apis/credentials", g
 
 declare global {
   interface Window {
-    WuppyComments?: { mount: () => unknown; preview: (el: HTMLElement, config: { theme: string; primaryColor: string; radius: number }) => () => void };
+    GitupcmsComments?: { mount: () => unknown; preview: (el: HTMLElement, config: { theme: string; primaryColor: string; radius: number }) => () => void };
   }
 }
 

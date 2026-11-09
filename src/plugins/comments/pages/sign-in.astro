@@ -23,7 +23,7 @@ const valid = !!site && pluginEnabled(site.owner, site.repo, "comments") && /^ht
 const providers = site ? providersOf(site) : [];
 
 if (valid && Astro.request.method === "POST") {
-  const cookie = `wuppy_comment_popup=${Buffer.from(JSON.stringify({ key, origin })).toString("base64url")}; Path=/comments; HttpOnly; SameSite=Lax; Max-Age=600${Astro.url.protocol === "https:" ? "; Secure" : ""}`;
+  const cookie = `gitupcms_comment_popup=${Buffer.from(JSON.stringify({ key, origin })).toString("base64url")}; Path=/comments; HttpOnly; SameSite=Lax; Max-Age=600${Astro.url.protocol === "https:" ? "; Secure" : ""}`;
   const provider = String(params.get("provider") ?? "");
   if (provider === "continue") return new Response(null, { status: 303, headers: { Location: "/comments/signed-in", "Set-Cookie": cookie } });
   if ((providers as string[]).includes(provider)) {

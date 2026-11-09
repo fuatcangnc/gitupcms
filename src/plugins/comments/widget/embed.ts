@@ -1,5 +1,5 @@
 /**
- * WuppyCMS comments embed: <div data-wuppy-comments data-site-key="…" data-slug="/post"></div> plus this script.
+ * Gitupcms comments embed: <div data-gitupcms-comments data-site-key="…" data-slug="/post"></div> plus this script.
  * Renders in a shadow root, talks to /api/comments/<key>/… on the CMS that serves this file, and signs commenters
  * in through a popup that posts the session token back (see src/pages/comments/signed-in.astro).
  * All user text goes in with textContent; the only HTML strings are the icons below and the server's footer.
@@ -28,7 +28,7 @@ type Kind = "main" | "reply" | "edit";
 
 const script = document.currentScript as HTMLScriptElement | null;
 const APP = script?.src ? new URL(script.src).origin : location.origin;
-const AUTH_KEY = `wuppy-comments:auth:${APP}`;
+const AUTH_KEY = `gitupcms-comments:auth:${APP}`;
 const MAX = 2000;
 
 // Tailwind registers its variables with @property, which does nothing inside a shadow root: give them their initial values.
@@ -94,6 +94,10 @@ const relativeTime = (iso: string, now = Date.now()) => {
 const store = {
   get: <T>(k: string): T | null => {
     try {
+      // shortcut: moves the value from its pre-rename key, so signed-in commenters stay signed in; drop it in 2027.
+      const old = k.replace(/^gitupcms-/, "wuppy-");
+      if (localStorage.getItem(k) == null && localStorage.getItem(old) != null) localStorage.setItem(k, localStorage.getItem(old)!);
+      localStorage.removeItem(old);
       return JSON.parse(localStorage.getItem(k) ?? "null");
     } catch {
       return null;
@@ -153,7 +157,7 @@ class Widget {
   ) {
     this.shadow = el.shadowRoot ?? el.attachShadow({ mode: "open" });
     this.shadow.replaceChildren(h("style", {}, STYLE), this.root, this.tooltip);
-    this.theme = preview ?? store.get<Theme>(`wuppy-comments:theme:${key}`);
+    this.theme = preview ?? store.get<Theme>(`gitupcms-comments:theme:${key}`);
     this.applyTheme();
     this.observer = new MutationObserver(() => (this.el.isConnected || this.preview ? this.applyTheme() : this.destroy()));
     this.observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
@@ -168,7 +172,7 @@ class Widget {
     widgets.add(this);
     if (preview) {
       this.comments = SAMPLE;
-      this.config = { ...preview, providers: ["google"], poweredByHtml: 'Comments by <a class="z-footer-link" href="#">WuppyCMS</a>' };
+      this.config = { ...preview, providers: ["google"], poweredByHtml: 'Comments by <a class="z-footer-link" href="#">Gitupcms</a>' };
       this.state = "ready";
       this.render();
     } else this.load();
@@ -220,7 +224,7 @@ class Widget {
       const { comments, config } = (await this.api(`comments?slug=${encodeURIComponent(this.slug)}`)) as { comments: Comment[]; config: Config };
       this.config = config;
       this.theme = { theme: config.theme, primaryColor: config.primaryColor, radius: config.radius };
-      store.set(`wuppy-comments:theme:${this.key}`, this.theme);
+      store.set(`gitupcms-comments:theme:${this.key}`, this.theme);
       this.applyTheme();
       // A token the server no longer knows: signed out, quietly.
       if (this.auth && !config.currentUser) this.setAuth(null, false);
@@ -268,12 +272,12 @@ class Widget {
 
   // ─── Actions ───
   signIn(provider?: Provider) {
-    const popup = window.open(`${APP}/comments/sign-in?key=${encodeURIComponent(this.key)}&origin=${encodeURIComponent(location.origin)}${provider ? `&provider=${provider}` : ""}`, "wuppy-comments-sign-in", "width=500,height=600");
+    const popup = window.open(`${APP}/comments/sign-in?key=${encodeURIComponent(this.key)}&origin=${encodeURIComponent(location.origin)}${provider ? `&provider=${provider}` : ""}`, "gitupcms-comments-sign-in", "width=500,height=600");
     if (!popup) return this.flash("Allow pop-ups for this site to sign in.");
     this.signingIn = true;
     this.render();
     const onMessage = (e: MessageEvent) => {
-      if (e.origin !== APP || e.data?.type !== "wuppy-comments-auth" || typeof e.data.token !== "string") return;
+      if (e.origin !== APP || e.data?.type !== "gitupcms-comments-auth" || typeof e.data.token !== "string") return;
       window.removeEventListener("message", onMessage);
       this.signingIn = false;
       this.setAuth({ token: e.data.token, user: e.data.user });
@@ -671,13 +675,13 @@ class Widget {
   }
 }
 
-/** Mounts every not-yet-mounted [data-wuppy-comments] on the page. */
+/** Mounts every not-yet-mounted [data-gitupcms-comments] on the page ([data-wuppy-comments]: sites set up before the rename). */
 const mount = () =>
-  [...document.querySelectorAll<HTMLElement>("[data-wuppy-comments]")].flatMap((el) => {
-    if (el.dataset.wuppyMounted) return [];
+  [...document.querySelectorAll<HTMLElement>("[data-gitupcms-comments], [data-wuppy-comments]")].flatMap((el) => {
+    if (el.dataset.gitupcmsMounted !== undefined) return [];
     const key = el.dataset.siteKey;
-    if (!key) return console.warn("[WuppyComments] Missing data-site-key", el), [];
-    el.dataset.wuppyMounted = "";
+    if (!key) return console.warn("[GitupcmsComments] Missing data-site-key", el), [];
+    el.dataset.gitupcmsMounted = "";
     return [new Widget(el, key, el.dataset.slug || location.pathname.replace(/\/+$/, "") || "/")];
   });
 
@@ -688,9 +692,9 @@ const preview = (el: HTMLElement, theme: Theme) => {
 };
 
 // Astro view transitions run the inline script tag again on each page: mount once, then on every page load.
-if (!(window as any).WuppyComments) {
-  (window as any).WuppyComments = { mount, preview };
+if (!(window as any).GitupcmsComments) {
+  (window as any).GitupcmsComments = { mount, preview };
   document.addEventListener("astro:page-load", mount);
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", mount);
   else mount();
-} else (window as any).WuppyComments.mount();
+} else (window as any).GitupcmsComments.mount();
