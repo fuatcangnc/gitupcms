@@ -1,0 +1,56 @@
+---
+import Admin from "@/layouts/Admin.astro";
+import { Button } from "@/components/ui/button";
+import { inputClass } from "@/components/ui/island";
+import { db } from "@/lib/db";
+import { pendingCount } from "@/plugins/comments/lib/comments";
+import { OWNER } from "@/lib/sites";
+
+const sites = db.prepare("SELECT key, repo AS name, domain FROM comment_site WHERE owner = ? ORDER BY repo").all(OWNER) as { key: string; name: string; domain: string }[];
+---
+
+<Admin title="Sites">
+  <div class="flex flex-col gap-6">
+    <div>
+      <h1 class="text-lg font-medium tracking-tight">Sites</h1>
+      <p class="text-muted-foreground text-sm">Each site gets its own comments, settings and widget key.</p>
+    </div>
+    {
+      sites.length > 0 && (
+        <ul class="divide-y rounded-lg border">
+          {sites.map((s) => {
+            const pending = pendingCount(s.key);
+            return (
+              <li>
+                <a href={`/sites/${s.key}`} class="hover:bg-muted flex items-center justify-between gap-3 px-4 py-3 text-sm">
+                  <span class="flex flex-col">
+                    <strong class="font-medium">{s.name}</strong>
+                    <span class="text-muted-foreground text-xs">{s.domain || "No domain yet"}</span>
+                  </span>
+                  {pending > 0 && <span class="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs text-amber-700 dark:text-amber-300">{pending} pending</span>}
+                </a>
+              </li>
+            );
+          })}
+        </ul>
+      )
+    }
+    <form class="flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-end" data-create>
+      <label class="flex flex-1 flex-col gap-1 text-sm">Name <input class={inputClass} name="name" placeholder="my-blog" required /></label>
+      <label class="flex flex-1 flex-col gap-1 text-sm">Domain <input class={inputClass} name="domain" placeholder="blog.example.com" /></label>
+      <Button type="submit">Add site</Button>
+    </form>
+    <p role="alert" class="text-destructive text-sm empty:hidden" data-error></p>
+  </div>
+</Admin>
+
+<script>
+  const form = document.querySelector<HTMLFormElement>("[data-create]")!;
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const res = await fetch("/api/sites", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(Object.fromEntries(new FormData(form))) });
+    const json = await res.json().catch(() => ({ error: "Unexpected response." }));
+    if (res.ok) location.href = `/sites/${json.data.key}?tab=install`;
+    else document.querySelector("[data-error]")!.textContent = json.error;
+  });
+</script>

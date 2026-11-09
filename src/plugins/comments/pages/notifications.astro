@@ -1,0 +1,37 @@
+---
+/** Unsubscribe link of comment emails: ?token=… turns notifications off, &on=1 back on. */
+import Base from "@/layouts/Base.astro";
+import { Button } from "@/components/ui/button";
+import { setNotificationsByToken } from "@/plugins/comments/lib/comments";
+
+const token = Astro.url.searchParams.get("token") ?? "";
+const on = Astro.url.searchParams.get("on") === "1";
+const found = !!token && setNotificationsByToken(token, on);
+if (!found) Astro.response.status = token ? 404 : 400;
+---
+
+<Base title={on ? "Subscribe" : "Unsubscribe"}>
+  <div class="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center gap-2 p-4 text-center">
+    {
+      !found ? (
+        <>
+          <h1 class="text-xl font-semibold">{token ? "Not found" : "Invalid link"}</h1>
+          <p class="text-muted-foreground text-sm">{token ? "This link is not valid." : "This link is missing a token."}</p>
+        </>
+      ) : on ? (
+        <>
+          <h1 class="text-xl font-semibold">You're re-subscribed</h1>
+          <p class="text-muted-foreground text-sm">You will receive email notifications again.</p>
+        </>
+      ) : (
+        <>
+          <h1 class="text-xl font-semibold">You've been unsubscribed</h1>
+          <p class="text-muted-foreground text-sm">You will no longer receive email notifications.</p>
+          <Button as="a" variant="ghost" size="sm" href={`?token=${encodeURIComponent(token)}&on=1`}>
+            Changed your mind? Re-subscribe
+          </Button>
+        </>
+      )
+    }
+  </div>
+</Base>

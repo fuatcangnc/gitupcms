@@ -1,0 +1,29 @@
+---
+import Admin from "@/layouts/Admin.astro";
+import AdminPanel from "@/plugins/comments/components/AdminPanel.astro";
+import { componentSource, siteByKey } from "@/plugins/comments/lib/comments";
+import { OWNER } from "@/lib/sites";
+
+const cs = siteByKey(Astro.params.key ?? "");
+if (!cs || cs.owner !== OWNER) return Astro.redirect("/");
+const siteUrl = cs.domain ? `https://${cs.domain}` : null;
+---
+
+<Admin title={cs.repo}>
+  <div class="flex flex-col gap-4">
+    <div>
+      <h1 class="text-lg font-medium tracking-tight">{cs.repo}</h1>
+      <p class="text-muted-foreground text-sm">Comments on {cs.domain || cs.repo}, stored in this server's own database. Export or delete them at any time.</p>
+    </div>
+    <AdminPanel cs={cs} api={`/api/sites/${cs.key}`} canAdmin siteUrl={siteUrl} confirmName={cs.repo}>
+      <section slot="install" class="flex flex-col gap-2 rounded-lg border p-4">
+        <h2 class="text-sm font-medium">Astro sites</h2>
+        <p class="text-muted-foreground text-sm">
+          Save this as <code>src/components/WuppyComments.astro</code> and put <code>&lt;WuppyComments /&gt;</code> where comments go, usually at
+          the end of a blog post layout. Each page gets its own thread, keyed by its path.
+        </p>
+        <pre class="bg-muted overflow-x-auto rounded-lg p-3 text-xs"><code>{componentSource(cs.key)}</code></pre>
+      </section>
+    </AdminPanel>
+  </div>
+</Admin>

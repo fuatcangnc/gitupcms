@@ -1,0 +1,95 @@
+---
+/**
+ * Commenter sign-in popup, opened by the embed: /comments/sign-in?key=<site key>&origin=<page origin>.
+ * Only a click here (a same-origin POST) sets the popup cookie that /comments/signed-in needs to hand the
+ * session to that origin, so another site can't collect tokens by opening /comments/signed-in itself.
+ */
+import Base from "@/layouts/Base.astro";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { authFor, commenterOf, providersOf, type Provider } from "@/plugins/comments/lib/auth";
+import { originAllowed, siteByKey } from "@/plugins/comments/lib/comments";
+import { normalizeOrigin } from "@/plugins/comments/lib/rules";
+import { pluginEnabled } from "@/lib/plugins";
+
+Astro.response.headers.set("X-Frame-Options", "DENY");
+Astro.response.headers.set("Content-Security-Policy", "frame-ancestors 'none'");
+
+const params = Astro.request.method === "POST" ? await Astro.request.formData() : Astro.url.searchParams;
+const key = String(params.get("key") ?? "");
+const origin = params.get("origin") ? normalizeOrigin(String(params.get("origin"))) : "";
+const site = siteByKey(key);
+const valid = !!site && pluginEnabled(site.owner, site.repo, "comments") && /^https?:\/\//.test(origin) && originAllowed(site, origin);
+const providers = site ? providersOf(site) : [];
+
+if (valid && Astro.request.method === "POST") {
+  const cookie = `wuppy_comment_popup=${Buffer.from(JSON.stringify({ key, origin })).toString("base64url")}; Path=/comments; HttpOnly; SameSite=Lax; Max-Age=600${Astro.url.protocol === "https:" ? "; Secure" : ""}`;
+  const provider = String(params.get("provider") ?? "");
+  if (provider === "continue") return new Response(null, { status: 303, headers: { Location: "/comments/signed-in", "Set-Cookie": cookie } });
+  if ((providers as string[]).includes(provider)) {
+    const res = await authFor(site, provider as Provider).api.signInSocial({
+      body: { provider: provider as Provider, callbackURL: "/comments/signed-in", errorCallbackURL: `/comments/sign-in?key=${encodeURIComponent(key)}&origin=${encodeURIComponent(origin)}&error=1` },
+      headers: Astro.request.headers,
+      asResponse: true,
+    });
+    const { url } = await res.json();
+    const headers = new Headers({ Location: url });
+    for (const c of res.headers.getSetCookie()) headers.append("Set-Cookie", c);
+    headers.append("Set-Cookie", cookie);
+    return new Response(null, { status: 303, headers });
+  }
+}
+
+const me = valid ? await commenterOf(Astro.request.headers) : null;
+// The embed's "Continue with Google" opens ?provider=google: go on without a second click (still a same-origin POST).
+const wanted = Astro.request.method === "GET" && !Astro.url.searchParams.has("error") ? String(Astro.url.searchParams.get("provider") ?? "") : "";
+const auto = valid && (providers as string[]).includes(wanted) ? (me ? "continue" : wanted) : "";
+const host = origin ? origin.replace(/^https?:\/\//, "") : "";
+const LABEL = { google: "Continue with Google", github: "Continue with GitHub" };
+---
+
+<Base title="Sign in to comment">
+  <div class="flex min-h-screen items-center justify-center p-4">
+    <Card class="w-full max-w-sm">
+      <CardHeader>
+        <CardTitle>Sign in to comment</CardTitle>
+        <CardDescription>{valid ? `on ${host}` : "This sign-in link is not valid."}</CardDescription>
+      </CardHeader>
+      {
+        valid && (
+          <CardContent class="flex flex-col gap-3">
+            {Astro.url.searchParams.has("error") && (
+              <p class="text-destructive text-sm" role="alert">
+                Sign-in didn't complete. Try again.
+              </p>
+            )}
+            <form method="post" class="flex flex-col gap-2" data-auto={auto || undefined}>
+              <input type="hidden" name="key" value={key} />
+              <input type="hidden" name="origin" value={origin} />
+              {me && (
+                <Button type="submit" name="provider" value="continue" class="w-full">
+                  Continue as {me.name}
+                </Button>
+              )}
+              {providers.map((p) => (
+                <Button type="submit" name="provider" value={p} variant={me ? "outline" : "default"} class="w-full">
+                  {LABEL[p]}
+                </Button>
+              ))}
+            </form>
+            {!providers.length && <p class="text-muted-foreground text-sm">No sign-in provider is set up for these comments yet.</p>}
+            <p class="text-muted-foreground text-xs">
+              Your name and picture show next to your comments. Your email is only used for reply notifications, which you can turn off at any time. {host} owns the comments; they are stored on its own server, not with a third party.
+            </p>
+          </CardContent>
+        )
+      }
+    </Card>
+  </div>
+</Base>
+
+<script>
+  const form = document.querySelector<HTMLFormElement>("form[data-auto]");
+  const button = form?.querySelector<HTMLButtonElement>(`button[value="${form.dataset.auto}"]`);
+  if (form && button) form.requestSubmit(button);
+</script>

@@ -1,0 +1,148 @@
+---
+/** The Comments admin screen (overview, moderation, users, settings, install), shared by the CMS and Gitupcms. */
+import CommentsModeration from "./CommentsModeration";
+import Commenters from "./Commenters";
+import CommentSettings from "./CommentSettings";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { appUrl, stats, type CommentSite } from "../lib/comments";
+import { providersOf } from "../lib/auth";
+import { AlertTriangle, CheckCircle2, Clock, Code, LayoutDashboard, MessageSquare, Settings, ShieldAlert, Users } from "@lucide/astro";
+
+interface Props {
+  cs: CommentSite;
+  /** The admin API (lib/admin.ts runAction behind it). */
+  api: string;
+  canAdmin: boolean;
+  siteUrl: string | null;
+  /** What "Delete all data" asks to type. */
+  confirmName: string;
+}
+const { cs, api, canAdmin, siteUrl, confirmName } = Astro.props;
+const s = stats(cs.key);
+const tabs = ["overview", "comments", "users", ...(canAdmin ? ["settings", "install"] : [])];
+const tab = tabs.includes(Astro.url.searchParams.get("tab") ?? "") ? Astro.url.searchParams.get("tab")! : "overview";
+const initialStatus = Astro.url.searchParams.get("status") ?? "";
+const max = Math.max(1, ...s.activity.map((d) => d.count));
+const W = 600, H = 120, GAP = 2;
+const bw = W / s.activity.length;
+const fmt = (iso: string) => new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(new Date(iso));
+const htmlSnippet = `<div data-wuppy-comments data-site-key="${cs.key}"></div>\n<script async src="${appUrl()}/comments/embed.js"></script>`;
+---
+
+<Tabs defaultValue={tab}>
+  <TabsList variant="default" class="self-start">
+    <TabsTrigger value="overview"><LayoutDashboard /> Overview</TabsTrigger>
+    <TabsTrigger value="comments"><MessageSquare /> Comments {s.pending > 0 && `(${s.pending} pending)`}</TabsTrigger>
+    <TabsTrigger value="users"><Users /> Users</TabsTrigger>
+    {canAdmin && <TabsTrigger value="settings"><Settings /> Settings</TabsTrigger>}
+    {canAdmin && <TabsTrigger value="install"><Code /> Install</TabsTrigger>}
+  </TabsList>
+
+  <TabsContent value="overview">
+    <div class="flex flex-col gap-4">
+      <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {
+          [
+            { label: "Total comments", value: s.total, icon: MessageSquare, hint: `${s.pages} pages · ${s.commenters} commenters` },
+            { label: "Pending review", value: s.pending, icon: Clock, hint: s.pending > 0 ? "Needs attention" : "All clear" },
+            { label: "Approved", value: s.approved, icon: CheckCircle2, hint: s.deleted ? `${s.deleted} removed` : "" },
+            { label: "Spam", value: s.spam, icon: AlertTriangle, hint: "" },
+          ].map((t) => (
+            <div class="flex flex-col gap-1 rounded-lg border p-4">
+              <span class="text-muted-foreground flex items-center justify-between text-sm">
+                {t.label} <t.icon class="size-4" />
+              </span>
+              <span class="text-2xl font-semibold tabular-nums">{t.value}</span>
+              {t.hint && <span class="text-muted-foreground text-xs">{t.hint}</span>}
+            </div>
+          ))
+        }
+      </div>
+      {
+        s.pending > 0 && (
+          <div class="flex items-center justify-between gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
+            <p class="flex items-center gap-2 text-sm">
+              <ShieldAlert class="size-4 text-amber-600 dark:text-amber-400" />
+              <span><strong>{s.pending}</strong> comment{s.pending !== 1 ? "s" : ""} waiting for review</span>
+            </p>
+            <Button as="a" href="?tab=comments&status=PENDING" size="sm" variant="outline">Review now</Button>
+          </div>
+        )
+      }
+      <div class="rounded-lg border p-4">
+        <p class="text-sm font-medium">Comments, last 30 days</p>
+        <p class="text-muted-foreground mb-3 text-xs">{s.activity.reduce((a, d) => a + d.count, 0)} in total, at most {max} a day</p>
+        <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" class="h-32 w-full" role="img" aria-label="Comments per day over the last 30 days">
+          <line x1="0" x2={W} y1={H} y2={H} class="stroke-border" stroke-width="1" vector-effect="non-scaling-stroke" />
+          {
+            s.activity.map((d, i) => {
+              const h = d.count ? Math.max(4, (d.count / max) * (H - 8)) : 0;
+              return (
+                <g class="group">
+                  <title>{`${fmt(d.date)}: ${d.count} comment${d.count === 1 ? "" : "s"}`}</title>
+                  <rect x={i * bw} y="0" width={bw} height={H} fill="transparent" />
+                  {h > 0 && <path class="fill-primary group-hover:opacity-80" d={`M${i * bw + GAP / 2},${H} v${-(h - 4)} q0,-4 4,-4 h${bw - GAP - 8} q4,0 4,4 v${h - 4} z`} />}
+                </g>
+              );
+            })
+          }
+        </svg>
+        <p class="text-muted-foreground mt-1 flex justify-between text-xs"><span>{fmt(s.activity[0].date)}</span><span>Today</span></p>
+      </div>
+      <div class="rounded-lg border">
+        <p class="border-b px-4 py-3 text-sm font-medium">Recent comments</p>
+        {
+          s.recent.length ? (
+            <ul class="divide-y">
+              {s.recent.map((c) => (
+                <li class="flex flex-col gap-0.5 px-4 py-3 text-sm">
+                  <span class="text-muted-foreground text-xs">
+                    <strong class="text-foreground font-medium">{c.commenter.name}</strong> on {c.page.slug} · {fmt(c.createdAt)} · {c.status.toLowerCase()}
+                  </span>
+                  <span class="line-clamp-2">{c.status === "DELETED" ? "Comment removed" : c.body}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p class="text-muted-foreground p-6 text-center text-sm">No comments yet. Add the comments component to your pages from the Install tab.</p>
+          )
+        }
+      </div>
+    </div>
+  </TabsContent>
+
+  <TabsContent value="comments">
+    <CommentsModeration client:only="react" api={api} initialStatus={initialStatus} siteUrl={siteUrl} />
+  </TabsContent>
+  <TabsContent value="users">
+    <Commenters client:only="react" api={api} />
+  </TabsContent>
+  {
+    canAdmin && (
+      <TabsContent value="settings">
+        <CommentSettings client:only="react" api={api} confirmName={confirmName} />
+      </TabsContent>
+    )
+  }
+  {
+    canAdmin && (
+      <TabsContent value="install">
+        <div class="flex flex-col gap-4">
+          {!providersOf(cs).length && (
+            <p role="alert" class="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-sm">
+              No commenter sign-in is set up. Add a Google or GitHub app under Settings → Sign-in, or set <code>COMMENTS_GOOGLE_CLIENT_ID</code> / <code>COMMENTS_GOOGLE_CLIENT_SECRET</code> (callback <code>{appUrl()}/api/comments/auth/callback/google</code>) or <code>COMMENTS_GITHUB_CLIENT_ID</code> / <code>COMMENTS_GITHUB_CLIENT_SECRET</code> (callback <code>{appUrl()}/api/comments/auth/callback/github</code>) and restart.
+            </p>
+          )}
+          <slot name="install" />
+          <section class="flex flex-col gap-2 rounded-lg border p-4">
+            <h2 class="text-sm font-medium">Without the component</h2>
+            <p class="text-muted-foreground text-sm">Any HTML page can embed the same widget:</p>
+            <pre class="bg-muted overflow-x-auto rounded-lg p-3 text-xs"><code>{htmlSnippet}</code></pre>
+            <p class="text-muted-foreground text-xs">Site key <code>{cs.key}</code>. Comments can only be posted from the domain and origins in Settings.</p>
+          </section>
+        </div>
+      </TabsContent>
+    )
+  }
+</Tabs>

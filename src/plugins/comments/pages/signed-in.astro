@@ -1,0 +1,37 @@
+---
+/**
+ * End of the sign-in popup: hands the commenter's session token to the page that opened it, only to the origin
+ * the visitor picked on /comments/sign-in (the popup cookie), then closes.
+ */
+import Base from "@/layouts/Base.astro";
+import { commentAuth } from "@/plugins/comments/lib/auth";
+import { originAllowed, siteByKey } from "@/plugins/comments/lib/comments";
+
+Astro.response.headers.set("X-Frame-Options", "DENY");
+let popup: { key: string; origin: string } | null = null;
+try {
+  popup = JSON.parse(Buffer.from(Astro.cookies.get("wuppy_comment_popup")?.value ?? "", "base64url").toString());
+} catch {}
+Astro.cookies.delete("wuppy_comment_popup", { path: "/comments" });
+const site = popup ? siteByKey(popup.key) : null;
+const session = site && originAllowed(site, popup!.origin) ? await commentAuth.api.getSession({ headers: Astro.request.headers }).catch(() => null) : null;
+const u = session?.user as any;
+const message = session ? { type: "wuppy-comments-auth", token: session.session.token, user: { id: u.id, name: u.name, username: u.username, image: u.image ?? null } } : null;
+const target = session ? popup!.origin : null;
+---
+
+<Base title="Signed in">
+  <div class="flex min-h-screen items-center justify-center p-4 text-sm">
+    <p class="text-muted-foreground" data-result>{message ? "Signed in. You can close this window." : "Sign-in didn't complete. Close this window and try again."}</p>
+  </div>
+</Base>
+
+<script is:inline define:vars={{ message, target }}>
+  if (message && target && window.opener) {
+    window.opener.postMessage(message, target);
+    window.close();
+  } else if (message) {
+    // The provider's pages can cut the popup off from the page (COOP); a second try stays on this server and works.
+    document.querySelector("[data-result]").textContent = "Signed in. Close this window and press Sign in once more to finish.";
+  }
+</script>
